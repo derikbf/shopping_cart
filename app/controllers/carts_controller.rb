@@ -22,4 +22,30 @@ class CartsController < ApplicationController
 
     render json: CartPresenter.new(@cart).as_json, status: :created
   end
+
+  def show
+    render json: CartPresenter.new(@cart).as_json, status: :ok
+  end
+
+  def update_item
+    product = Product.find(params[:product_id])
+    quantity = params[:quantity].to_i
+
+    if quantity.negative?
+      render json: { error: 'Quantity cannot be negative' }, status: :unprocessable_entity
+      return
+    end
+
+    cart_item = @cart.cart_items.find_by(product: product)
+
+    return render json: CartPresenter.new(@cart).as_json, status: :ok unless cart_item
+
+    if quantity.zero?
+      cart_item.destroy
+    else
+      cart_item.update!(quantity: quantity)
+    end
+
+    render json: CartPresenter.new(@cart).as_json, status: :ok
+  end
 end
