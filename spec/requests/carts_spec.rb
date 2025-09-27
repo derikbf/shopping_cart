@@ -4,6 +4,8 @@ require 'rails_helper'
 
 RSpec.describe "/carts", type: :request do
   let!(:product) { create(:product, price: 10.0, name: "Super Gadget") }
+  let!(:product1) { create(:product, price: 10.0, name: "Gadget") }
+  let!(:product2) { create(:product, price: 25.0, name: "Widget") }
 
   describe "POST /cart (add_product)" do
     context "with valid parameters" do
@@ -54,6 +56,73 @@ RSpec.describe "/carts", type: :request do
       it "returns a not_found error if product_id is invalid" do
         post '/cart', params: { product_id: 9999, quantity: 1 }, as: :json
         expect(response).to have_http_status(:not_found )
+      end
+    end
+  end
+
+  describe "GET /cart (show)" do
+    context "when the cart is empty" do
+      it "returns an empty cart structure" do
+        get '/cart'
+
+        expect(response).to have_http_status(:ok )
+        json_response = JSON.parse(response.body)
+        expect(json_response['products']).to be_empty
+        expect(json_response['total_price']).to eq(0.0)
+      end
+    end
+
+    context "when the cart has items" do
+      before do
+        post '/cart', params: { product_id: product1.id, quantity: 2 }, as: :json
+        post '/cart', params: { product_id: product2.id, quantity: 1 }, as: :json
+      end
+
+      it "returns the cart with all its items" do
+        get '/cart'
+
+        expect(response).to have_http_status(:ok )
+        json_response = JSON.parse(response.body)
+
+        expect(json_response['products'].count).to eq(2)
+        expect(json_response['total_price']).to eq(45.0)
+        expect(json_response['products'].first['name']).to eq("Gadget")
+      end
+    end
+  end
+
+
+  describe "POST /cart/add_item (update_item)" do
+    let!(:product) { create(:product, price: 10.0) }
+
+    before do
+      post '/cart', params: { product_id: product.id, quantity: 1 }, as: :json
+    end
+
+    context "with valid parameters" do
+      it "updates the quantity only an existing product" do
+        post '/cart/add_item', params: { product_id: product.id, quantity: 5 }, as: :json
+
+        expect(response).to have_http_status(:ok )
+        json_response = JSON.parse(response.body)
+
+        expect(json_response['products'].first['quantity']).to eq(5)
+        expect(json_response['total_price']).to eq(50.0)
+      end
+    end
+
+    context "with invalid quantity" do
+      it "removes the item if quantity is zero" do
+        post '/cart/add_item', params: { product_id: product.id, quantity: 0 }, as: :json
+
+        expect(response).to have_http_status(:ok )
+        json_response = JSON.parse(response.body)
+        expect(json_response['products']).to be_empty
+      end
+
+      it "returns an error if quantity is negative" do
+        post '/cart/add_item', params: { product_id: product.id, quantity: -1 }, as: :json
+        expect(response).to have_http_status(:unprocessable_entity )
       end
     end
   end
