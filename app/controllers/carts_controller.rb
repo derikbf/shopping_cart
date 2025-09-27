@@ -7,7 +7,13 @@ class CartsController < ApplicationController
   before_action :set_cart
 
   def add_product
-    puts "entrou no cart controller add_prod"
+    quantity = params[:quantity].to_i
+
+    if quantity <= 0
+      render json: { error: '...' }, status: :unprocessable_entity
+      return
+    end
+
     product = Product.find(params[:product_id])
 
     cart_item = @cart.cart_items.find_or_initialize_by(product: product)

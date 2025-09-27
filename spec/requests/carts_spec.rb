@@ -3,12 +3,11 @@
 require 'rails_helper'
 
 RSpec.describe "/carts", type: :request do
-  # Nosso novo teste para a Etapa 1, já usando factory
-  describe "POST /cart (add_product)" do
-    let!(:product) { create(:product, price: 10.0) }
+  let!(:product) { create(:product, price: 10.0, name: "Super Gadget") }
 
-    context "when adding a new product" do
-      it "creates a cart and adds the product with full details" do
+  describe "POST /cart (add_product)" do
+    context "with valid parameters" do
+      it "creates a cart, adds a new product, and returns the complete payload" do
         post '/cart', params: { product_id: product.id, quantity: 2 }, as: :json
 
         expect(response).to have_http_status(:created )
@@ -19,12 +18,42 @@ RSpec.describe "/carts", type: :request do
         expect(json_response['total_price']).to eq(20.0)
 
         product_json = json_response['products'].first
-        puts "product_json: #{product_json}"
         expect(product_json['id']).to eq(product.id)
-        expect(product_json['name']).to eq(product.name)
+        expect(product_json['name']).to eq("Super Gadget")
         expect(product_json['quantity']).to eq(2)
         expect(product_json['unit_price']).to eq(10.0)
         expect(product_json['total_price']).to eq(20.0)
+      end
+
+      it "increases the quantity when adding an existing product" do
+        post '/cart', params: { product_id: product.id, quantity: 1 }, as: :json
+        expect(response).to have_http_status(:created )
+
+        post '/cart', params: { product_id: product.id, quantity: 3 }, as: :json
+        expect(response).to have_http_status(:created )
+
+        json_response = JSON.parse(response.body)
+        
+        expect(json_response['products'].count).to eq(1)
+        expect(json_response['products'].first['quantity']).to eq(4)
+        expect(json_response['total_price']).to eq(40.0)
+      end
+    end
+
+    context "with invalid parameters" do
+      it "returns an unprocessable_entity error if quantity is zero" do
+        post '/cart', params: { product_id: product.id, quantity: 0 }, as: :json
+        expect(response).to have_http_status(:unprocessable_entity )
+      end
+
+      it "returns an unprocessable_entity error if quantity is negative" do
+        post '/cart', params: { product_id: product.id, quantity: -1 }, as: :json
+        expect(response).to have_http_status(:unprocessable_entity )
+      end
+
+      it "returns a not_found error if product_id is invalid" do
+        post '/cart', params: { product_id: 9999, quantity: 1 }, as: :json
+        expect(response).to have_http_status(:not_found )
       end
     end
   end
