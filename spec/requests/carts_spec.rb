@@ -8,17 +8,23 @@ RSpec.describe "/carts", type: :request do
     let!(:product) { create(:product, price: 10.0) }
 
     context "when adding a new product" do
-      it "creates a cart if none exists and adds the product" do
-        expect(Cart.count).to eq(0)
-
+      it "creates a cart and adds the product with full details" do
         post '/cart', params: { product_id: product.id, quantity: 2 }, as: :json
 
         expect(response).to have_http_status(:created )
-        expect(Cart.count).to eq(1)
         
         json_response = JSON.parse(response.body)
-        expect(json_response['products'].first['id']).to eq(product.id)
-        expect(json_response['products'].first['quantity']).to eq(2)
+        
+        expect(json_response['id']).to be_present
+        expect(json_response['total_price']).to eq(20.0)
+
+        product_json = json_response['products'].first
+        puts "product_json: #{product_json}"
+        expect(product_json['id']).to eq(product.id)
+        expect(product_json['name']).to eq(product.name)
+        expect(product_json['quantity']).to eq(2)
+        expect(product_json['unit_price']).to eq(10.0)
+        expect(product_json['total_price']).to eq(20.0)
       end
     end
   end
