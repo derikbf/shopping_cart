@@ -91,7 +91,6 @@ RSpec.describe "/carts", type: :request do
     end
   end
 
-
   describe "POST /cart/add_item (update_item)" do
     let!(:product) { create(:product, price: 10.0) }
 
@@ -123,6 +122,40 @@ RSpec.describe "/carts", type: :request do
       it "returns an error if quantity is negative" do
         post '/cart/add_item', params: { product_id: product.id, quantity: -1 }, as: :json
         expect(response).to have_http_status(:unprocessable_entity )
+      end
+    end
+  end
+
+  describe "DELETE /cart/:product_id (remove_item)" do
+    let!(:product_to_remove) { create(:product, price: 50.0) }
+
+    before do
+      post '/cart', params: { product_id: product_to_remove.id, quantity: 1 }, as: :json
+    end
+
+    context "when the product exists in the cart" do
+      it "removes the product from the cart and returns the updated cart" do
+        delete "/cart/#{product_to_remove.id}"
+
+        expect(response).to have_http_status(:ok )
+        json_response = JSON.parse(response.body)
+
+        expect(json_response['products']).to be_empty
+        expect(json_response['total_price']).to eq(0.0)
+      end
+    end
+
+    context "when the product does not exist in the cart" do
+      it "returns an error message and does not change the cart" do
+        delete "/cart/9999"
+
+        expect(response).to have_http_status(:not_found )
+        json_response = JSON.parse(response.body)
+        expect(json_response['error']).to eq('Product not found in cart')
+
+        get '/cart'
+        final_cart_json = JSON.parse(response.body)
+        expect(final_cart_json['products'].count).to eq(1)
       end
     end
   end

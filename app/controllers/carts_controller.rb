@@ -5,6 +5,7 @@ class CartsController < ApplicationController
 
   include CurrentCart
   before_action :set_cart
+  before_action :update_interaction_timestamp, only: [:add_product, :update_item, :remove_item]
 
   def add_product
     quantity = params[:quantity].to_i
@@ -47,5 +48,22 @@ class CartsController < ApplicationController
     end
 
     render json: CartPresenter.new(@cart).as_json, status: :ok
+  end
+
+  def remove_item
+    cart_item = @cart.cart_items.find_by(product_id: params[:product_id])
+
+    if cart_item
+      cart_item.destroy
+      render json: CartPresenter.new(@cart).as_json, status: :ok
+    else
+      render json: { error: 'Product not found in cart' }, status: :not_found
+    end
+  end
+
+  private
+
+  def update_interaction_timestamp
+    @cart.touch(:last_interaction_at)
   end
 end
